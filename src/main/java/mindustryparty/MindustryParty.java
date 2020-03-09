@@ -35,7 +35,7 @@ public class MindustryParty extends Plugin {
 		// Setup config file.
 		Properties config = new Properties();
 		// Does the config already exist?
-		if (!new File(Core.settings.getDataDirectory() + "/config.configerties").exists()) {
+		if (!new File(Core.settings.getDataDirectory() + "/config.properties").exists()) {
 			try {
 				// Set the defaults
 				config.getProperty("dbstring", "jdbc:mysql://localhost:3306/mindustryparty");
@@ -43,7 +43,7 @@ public class MindustryParty extends Plugin {
 				config.getProperty("dbpass", "root");
 
 				// Save the defaults.
-				config.store(new FileOutputStream(Core.settings.getDataDirectory() + "/config.configerties"), null);
+				config.store(new FileOutputStream(Core.settings.getDataDirectory() + "/config.properties"), null);
 			} catch (IOException ex) {
 				System.out.println("Something went wrong while attempting to save the config:");
 				ex.printStackTrace();
@@ -51,7 +51,7 @@ public class MindustryParty extends Plugin {
 		} else {
 			try {
 				// Load the config file.
-				config.load(new FileInputStream(new File(Core.settings.getDataDirectory() + "/config.configerties")));
+				config.load(new FileInputStream(new File(Core.settings.getDataDirectory() + "/config.properties")));
 			} catch (Exception e1) {
 				System.out.println("Something went wrong while attempting to load the config:");
 				e1.printStackTrace();
@@ -164,9 +164,10 @@ public class MindustryParty extends Plugin {
 		Timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
-				Call.sendMessage("[#7289DA]Did you know that we have a discord server? Join it here: [blue]https://discord.gg/5dWM7Bt [#7289DA]or go to [blue]https://mindustry.party/discord[#7289DA] instead.");
+				Call.sendMessage(
+						"[#7289DA]Did you know that we have a discord server? Join it here: [purple]https://mindustry.party/discord[#7289DA].");
 			}
-		}, 60 * 5, 60 * 5);
+		}, 5 * 60, 5 * 60);
 	}
 
 	// Register player-invoked commands.
@@ -198,16 +199,19 @@ public class MindustryParty extends Plugin {
 
 		// Stats command.
 		// Commented out because still TODO.
-		/*handler.<Player>register("redeem", "", "Redeem a donator code.", (args, player) -> {
-
-			if (!playerRanks.get(player).equals("default")) {
-				Call.onInfoMessage(player.con,
-						"[red]You cannot redeem a code, because you already have a rank higher than default.");
-			} else {
-
-			}
-
-		});*/
+		/*
+		 * handler.<Player>register("redeem", "", "Redeem a donator code.", (args,
+		 * player) -> {
+		 * 
+		 * if (!playerRanks.get(player).equals("default")) {
+		 * Call.onInfoMessage(player.con,
+		 * "[red]You cannot redeem a code, because you already have a rank higher than default."
+		 * ); } else {
+		 * 
+		 * }
+		 * 
+		 * });
+		 */
 
 		// Stats command.
 		handler.<Player>register("stats", "", "Show stats about yourself.", (args, player) -> {
