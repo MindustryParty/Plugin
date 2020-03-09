@@ -1,0 +1,7 @@
+{
+  "name": "MindustryParty",
+  "author": "NoahvdAa",
+  "main": "mindustryparty.MindustryParty",
+  "description": "Core plugin of the mindustry.party server.",
+  "version": 1.0
+}
