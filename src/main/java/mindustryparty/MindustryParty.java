@@ -167,7 +167,7 @@ public class MindustryParty extends Plugin {
 				Call.sendMessage(
 						"[#7289DA]Did you know that we have a discord server? Join it here: [purple]https://mindustry.party/discord[#7289DA].");
 			}
-		}, 5 * 60, 5 * 60);
+		}, 15 * 60, 15 * 60);
 	}
 
 	// Register player-invoked commands.
