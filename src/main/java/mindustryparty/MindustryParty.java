@@ -20,6 +20,8 @@ import arc.Events;
 import arc.util.CommandHandler;
 import arc.util.Strings;
 import arc.util.Timer;
+import mindustry.content.UnitTypes;
+import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType.PlayerJoin;
 import mindustry.game.EventType.PlayerLeave;
@@ -114,6 +116,8 @@ public class MindustryParty extends Plugin {
 
 				if (rank.equals("donator")) {
 					e.player.name = "[accent]DONATOR[] " + e.player.name;
+				} else if (rank.equals("moderator")) {
+					e.player.name = "[accent]MODERATOR[] " + e.player.name;
 				} else if (rank.equals("admin")) {
 					e.player.name = "[green]ADMIN[] " + e.player.name;
 				}
@@ -247,6 +251,39 @@ public class MindustryParty extends Plugin {
 								hueStatus.put(player, 0);
 								hasRainbow.add(player);
 								player.sendMessage("[accent]Enabled rainbow-name effect.");
+							}
+						}
+					} catch (SQLException e) {
+						// Something went wrong, inform them.
+						Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+					}
+
+				});
+		
+		handler.<Player>register("pet", "[petname]", "[Donator-only] Spawn a pet.",
+				(args, player) -> {
+
+					try {
+						PreparedStatement playerInfoStatement = connection
+								.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+						playerInfoStatement.setString(1, player.uuid);
+						ResultSet playerInfo = playerInfoStatement.executeQuery();
+						playerInfo.next();
+						String rank = playerInfo.getString("rank");
+						
+						if(rank.equals("default")) {
+							Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
+						}else {
+							String available = "[accent]Available pets: draug";
+							if(args.length == 0) {
+								player.sendMessage(available);
+							}else if(args[0].equalsIgnoreCase("draug")){
+								BaseUnit baseUnit = UnitTypes.draug.create(player.getTeam());
+	                            baseUnit.set(player.getX(), player.getY());
+	                            baseUnit.add();
+	                            Call.sendMessage(player.name+" [accent]spawned a draug pet!");
+							}else {
+								player.sendMessage(available);
 							}
 						}
 					} catch (SQLException e) {
