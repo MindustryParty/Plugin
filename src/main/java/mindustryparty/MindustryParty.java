@@ -1,5 +1,6 @@
 package mindustryparty;
 
+import java.awt.Color;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -17,10 +18,12 @@ import java.util.TimerTask;
 import arc.Core;
 import arc.Events;
 import arc.util.CommandHandler;
+import arc.util.Strings;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType.PlayerJoin;
 import mindustry.game.EventType.PlayerLeave;
+import mindustry.game.EventType.Trigger;
 import mindustry.gen.Call;
 import mindustry.plugin.Plugin;
 
@@ -28,6 +31,9 @@ public class MindustryParty extends Plugin {
 
 	private ArrayList<Player> players = new ArrayList<Player>();
 	private HashMap<Player, String> playerRanks = new HashMap<Player, String>();
+	private ArrayList<Player> hasRainbow = new ArrayList<Player>();
+	private HashMap<Player, Integer> hueStatus = new HashMap<Player, Integer>();
+	private HashMap<Player, String> originalName = new HashMap<Player, String>();
 	private Connection connection;
 
 	public MindustryParty() {
@@ -71,6 +77,8 @@ public class MindustryParty extends Plugin {
 		Events.on(PlayerJoin.class, e -> {
 			// Add player to internal player list.
 			players.add(e.player);
+			// Strip their name of colors.
+			e.player.name = Strings.stripColors(e.player.name);
 			try {
 				// Count the number of rows of players with this uuid.
 				PreparedStatement rowCountStatement = connection
@@ -109,6 +117,7 @@ public class MindustryParty extends Plugin {
 				} else if (rank.equals("admin")) {
 					e.player.name = "[green]ADMIN[] " + e.player.name;
 				}
+				originalName.put(e.player, e.player.name);
 			} catch (Exception ex) {
 				e.player.con.kick("[red]Something went wrong. Please try joining again.");
 			}
@@ -120,6 +129,24 @@ public class MindustryParty extends Plugin {
 			players.remove(e.player);
 			// Remove rank from tracking.
 			playerRanks.remove(e.player);
+			if(hasRainbow.contains(e.player)) {
+				hasRainbow.remove(e.player);
+				hueStatus.remove(e.player);
+			}
+		});
+
+		// Every tick
+		Events.on(Trigger.update, () -> {
+			for (Player r : hasRainbow) {
+				Integer hue = hueStatus.get(r);
+				hue++;
+				if (hue > 360) {
+					hue = 0;
+				}
+				hueStatus.put(r, hue);
+				String hexCode = Integer.toHexString(Color.getHSBColor(hue / 360f, 1f, 1f).getRGB()).substring(2);
+				r.name = "[#" + hexCode + "]" + originalName.get(r);
+			}
 		});
 
 		// Playtime-tracking task.
@@ -190,6 +217,38 @@ public class MindustryParty extends Plugin {
 							pos++;
 						}
 						Call.onInfoMessage(player.con, text);
+					} catch (SQLException e) {
+						// Something went wrong, inform them.
+						Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+					}
+
+				});
+
+		handler.<Player>register("rainbow", "", "[Donator-only] Toggle the rainbow-name effect.",
+				(args, player) -> {
+
+					try {
+						PreparedStatement playerInfoStatement = connection
+								.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+						playerInfoStatement.setString(1, player.uuid);
+						ResultSet playerInfo = playerInfoStatement.executeQuery();
+						playerInfo.next();
+						String rank = playerInfo.getString("rank");
+						
+						if(rank.equals("default")) {
+							Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
+						}else {
+							if(hasRainbow.contains(player)) {
+								hasRainbow.remove(player);
+								hueStatus.remove(player);
+								player.sendMessage("[accent]Disabled rainbow-name effect.");
+								player.name = originalName.get(player);
+							}else {
+								hueStatus.put(player, 0);
+								hasRainbow.add(player);
+								player.sendMessage("[accent]Enabled rainbow-name effect.");
+							}
+						}
 					} catch (SQLException e) {
 						// Something went wrong, inform them.
 						Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
