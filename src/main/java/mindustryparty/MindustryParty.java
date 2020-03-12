@@ -117,7 +117,7 @@ public class MindustryParty extends Plugin {
 				if (rank.equals("donator")) {
 					e.player.name = "[accent]DONATOR[] " + e.player.name;
 				} else if (rank.equals("moderator")) {
-					e.player.name = "[accent]MODERATOR[] " + e.player.name;
+					e.player.name = "[yellow]MODERATOR[] " + e.player.name;
 				} else if (rank.equals("admin")) {
 					e.player.name = "[green]ADMIN[] " + e.player.name;
 				}
@@ -274,7 +274,7 @@ public class MindustryParty extends Plugin {
 						if(rank.equals("default")) {
 							Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
 						}else {
-							String available = "[accent]Available pets: draug";
+							String available = "[accent]Available pets: draug, phantom";
 							if(args.length == 0) {
 								player.sendMessage(available);
 							}else if(args[0].equalsIgnoreCase("draug")){
@@ -282,6 +282,11 @@ public class MindustryParty extends Plugin {
 	                            baseUnit.set(player.getX(), player.getY());
 	                            baseUnit.add();
 	                            Call.sendMessage(player.name+" [accent]spawned a draug pet!");
+							}else if(args[0].equalsIgnoreCase("phantom")){
+								BaseUnit baseUnit = UnitTypes.phantom.create(player.getTeam());
+	                            baseUnit.set(player.getX(), player.getY());
+	                            baseUnit.add();
+	                            Call.sendMessage(player.name+" [accent]spawned a phantom pet!");
 							}else {
 								player.sendMessage(available);
 							}
