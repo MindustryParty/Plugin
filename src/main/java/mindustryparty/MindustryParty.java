@@ -33,6 +33,7 @@ public class MindustryParty extends Plugin {
 
 	private ArrayList<Player> players = new ArrayList<Player>();
 	private HashMap<Player, String> playerRanks = new HashMap<Player, String>();
+	private HashMap<Player, String> playerRanksL = new HashMap<Player, String>();
 	private ArrayList<Player> hasRainbow = new ArrayList<Player>();
 	private HashMap<Player, Integer> hueStatus = new HashMap<Player, Integer>();
 	private HashMap<Player, String> originalName = new HashMap<Player, String>();
@@ -79,8 +80,6 @@ public class MindustryParty extends Plugin {
 		Events.on(PlayerJoin.class, e -> {
 			// Add player to internal player list.
 			players.add(e.player);
-			// Strip their name of colors.
-			e.player.name = Strings.stripColors(e.player.name);
 			try {
 				// Count the number of rows of players with this uuid.
 				PreparedStatement rowCountStatement = connection
@@ -114,14 +113,26 @@ public class MindustryParty extends Plugin {
 
 				playerRanks.put(e.player, rank);
 
+				String rankD = "";
+
+				e.player.isAdmin = false;
+				
 				if (rank.equals("donator")) {
-					e.player.name = "[accent]DONATOR[] " + e.player.name;
+					rankD = "[accent]DONATOR[] ";
 				} else if (rank.equals("moderator")) {
-					e.player.name = "[yellow]MODERATOR[] " + e.player.name;
+					rankD = "[yellow]MODERATOR[] ";
+					e.player.isAdmin = true;
 				} else if (rank.equals("admin")) {
-					e.player.name = "[green]ADMIN[] " + e.player.name;
+					rankD = "[green]ADMIN[] ";
+					e.player.isAdmin = true;
+				}else {
+					e.player.name = Strings.stripColors(e.player.name);
 				}
+
 				originalName.put(e.player, e.player.name);
+
+				e.player.name = rankD + e.player.name;
+				playerRanksL.put(e.player, rankD);
 			} catch (Exception ex) {
 				e.player.con.kick("[red]Something went wrong. Please try joining again.");
 			}
@@ -133,7 +144,7 @@ public class MindustryParty extends Plugin {
 			players.remove(e.player);
 			// Remove rank from tracking.
 			playerRanks.remove(e.player);
-			if(hasRainbow.contains(e.player)) {
+			if (hasRainbow.contains(e.player)) {
 				hasRainbow.remove(e.player);
 				hueStatus.remove(e.player);
 			}
@@ -149,7 +160,7 @@ public class MindustryParty extends Plugin {
 				}
 				hueStatus.put(r, hue);
 				String hexCode = Integer.toHexString(Color.getHSBColor(hue / 360f, 1f, 1f).getRGB()).substring(2);
-				r.name = "[#" + hexCode + "]" + originalName.get(r);
+				r.name = playerRanksL.get(r) + "[#" + hexCode + "]" + Strings.stripColors(originalName.get(r));
 			}
 		});
 
@@ -228,77 +239,75 @@ public class MindustryParty extends Plugin {
 
 				});
 
-		handler.<Player>register("rainbow", "", "[Donator-only] Toggle the rainbow-name effect.",
-				(args, player) -> {
+		handler.<Player>register("rainbow", "", "[Donator-only] Toggle the rainbow-name effect.", (args, player) -> {
 
-					try {
-						PreparedStatement playerInfoStatement = connection
-								.prepareStatement("SELECT * FROM players WHERE uuid=?;");
-						playerInfoStatement.setString(1, player.uuid);
-						ResultSet playerInfo = playerInfoStatement.executeQuery();
-						playerInfo.next();
-						String rank = playerInfo.getString("rank");
-						
-						if(rank.equals("default")) {
-							Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
-						}else {
-							if(hasRainbow.contains(player)) {
-								hasRainbow.remove(player);
-								hueStatus.remove(player);
-								player.sendMessage("[accent]Disabled rainbow-name effect.");
-								player.name = originalName.get(player);
-							}else {
-								hueStatus.put(player, 0);
-								hasRainbow.add(player);
-								player.sendMessage("[accent]Enabled rainbow-name effect.");
-							}
-						}
-					} catch (SQLException e) {
-						// Something went wrong, inform them.
-						Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+			try {
+				PreparedStatement playerInfoStatement = connection
+						.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+				playerInfoStatement.setString(1, player.uuid);
+				ResultSet playerInfo = playerInfoStatement.executeQuery();
+				playerInfo.next();
+				String rank = playerInfo.getString("rank");
+
+				if (rank.equals("default")) {
+					Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
+				} else {
+					if (hasRainbow.contains(player)) {
+						hasRainbow.remove(player);
+						hueStatus.remove(player);
+						player.sendMessage("[accent]Disabled rainbow-name effect.");
+						player.name = playerRanksL.get(player) + originalName.get(player);
+					} else {
+						hueStatus.put(player, 0);
+						hasRainbow.add(player);
+						player.sendMessage("[accent]Enabled rainbow-name effect.");
 					}
+				}
+			} catch (SQLException e) {
+				// Something went wrong, inform them.
+				Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+			}
 
-				});
-		
-		handler.<Player>register("pet", "[petname]", "[Donator-only] Spawn a pet.",
-				(args, player) -> {
+		});
 
-					try {
-						PreparedStatement playerInfoStatement = connection
-								.prepareStatement("SELECT * FROM players WHERE uuid=?;");
-						playerInfoStatement.setString(1, player.uuid);
-						ResultSet playerInfo = playerInfoStatement.executeQuery();
-						playerInfo.next();
-						String rank = playerInfo.getString("rank");
-						
-						if(rank.equals("default")) {
-							Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
-						}else {
-							String available = "[accent]Available pets: draug, phantom";
-							if(args.length == 0) {
-								player.sendMessage(available);
-							}else if(args[0].equalsIgnoreCase("draug")){
-								BaseUnit baseUnit = UnitTypes.draug.create(player.getTeam());
-	                            baseUnit.set(player.getX(), player.getY());
-	                            baseUnit.add();
-	                            Call.sendMessage(player.name+" [accent]spawned a draug pet!");
-							}else if(args[0].equalsIgnoreCase("phantom")){
-								BaseUnit baseUnit = UnitTypes.phantom.create(player.getTeam());
-	                            baseUnit.set(player.getX(), player.getY());
-	                            baseUnit.add();
-	                            Call.sendMessage(player.name+" [accent]spawned a phantom pet!");
-							}else {
-								player.sendMessage(available);
-							}
-						}
-					} catch (SQLException e) {
-						// Something went wrong, inform them.
-						Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+		handler.<Player>register("pet", "[petname]", "[Donator-only] Spawn a pet.", (args, player) -> {
+
+			try {
+				PreparedStatement playerInfoStatement = connection
+						.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+				playerInfoStatement.setString(1, player.uuid);
+				ResultSet playerInfo = playerInfoStatement.executeQuery();
+				playerInfo.next();
+				String rank = playerInfo.getString("rank");
+
+				if (rank.equals("default")) {
+					Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
+				} else {
+					String available = "[accent]Available pets: draug, phantom";
+					if (args.length == 0) {
+						player.sendMessage(available);
+					} else if (args[0].equalsIgnoreCase("draug")) {
+						BaseUnit baseUnit = UnitTypes.draug.create(player.getTeam());
+						baseUnit.set(player.getX(), player.getY());
+						baseUnit.add();
+						Call.sendMessage(player.name + " [accent]spawned a draug pet!");
+					} else if (args[0].equalsIgnoreCase("phantom")) {
+						BaseUnit baseUnit = UnitTypes.phantom.create(player.getTeam());
+						baseUnit.set(player.getX(), player.getY());
+						baseUnit.add();
+						Call.sendMessage(player.name + " [accent]spawned a phantom pet!");
+					} else {
+						player.sendMessage(available);
 					}
+				}
+			} catch (SQLException e) {
+				// Something went wrong, inform them.
+				Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+			}
 
-				});
+		});
 
-		// Stats command.
+		// Redeem command.
 		// Commented out because still TODO.
 		/*
 		 * handler.<Player>register("redeem", "", "Redeem a donator code.", (args,
@@ -313,6 +322,35 @@ public class MindustryParty extends Plugin {
 		 * 
 		 * });
 		 */
+
+		// Staffchat command.
+		handler.<Player>register("sc", "<message>", "[Staff-only] Staff-chat.", (args, player) -> {
+
+			try {
+				PreparedStatement playerInfoStatement = connection
+						.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+				playerInfoStatement.setString(1, player.uuid);
+				ResultSet playerInfo = playerInfoStatement.executeQuery();
+				playerInfo.next();
+				String rank = playerInfo.getString("rank");
+
+				if (!rank.equals("moderator") && !rank.equals("admin")) {
+					Call.onInfoMessage(player.con, "[red]You need to be [accent]STAFF [red]to do that.");
+				} else {
+					for (Player p : players) {
+						String rankP = playerRanks.get(p);
+						if (rankP.equals("moderator") || rankP.contentEquals("admin")) {
+							p.sendMessage(
+									"[#3bcfe2][Staff-Chat] " + player.name + "[accent]: [white]" + String.join(" ", args));
+						}
+					}
+				}
+			} catch (SQLException e) {
+				// Something went wrong, inform them.
+				Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+			}
+
+		});
 
 		// Stats command.
 		handler.<Player>register("stats", "", "Show stats about yourself.", (args, player) -> {
