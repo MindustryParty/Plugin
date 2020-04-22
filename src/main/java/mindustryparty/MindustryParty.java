@@ -38,11 +38,12 @@ public class MindustryParty extends Plugin {
 	private HashMap<Player, Integer> hueStatus = new HashMap<Player, Integer>();
 	private HashMap<Player, String> originalName = new HashMap<Player, String>();
 	private Connection connection;
+	private Properties config;
 
 	public MindustryParty() {
 
 		// Setup config file.
-		Properties config = new Properties();
+		config = new Properties();
 		// Does the config already exist?
 		if (!new File(Core.settings.getDataDirectory() + "/config.properties").exists()) {
 			try {
@@ -50,6 +51,7 @@ public class MindustryParty extends Plugin {
 				config.getProperty("dbstring", "jdbc:mysql://localhost:3306/mindustryparty");
 				config.getProperty("dbuser", "root");
 				config.getProperty("dbpass", "root");
+				config.getProperty("serverType", "vanilla");
 
 				// Save the defaults.
 				config.store(new FileOutputStream(Core.settings.getDataDirectory() + "/config.properties"), null);
@@ -116,7 +118,7 @@ public class MindustryParty extends Plugin {
 				String rankD = "";
 
 				e.player.isAdmin = false;
-				
+
 				if (rank.equals("donator")) {
 					rankD = "[accent]DONATOR[] ";
 				} else if (rank.equals("moderator")) {
@@ -125,7 +127,7 @@ public class MindustryParty extends Plugin {
 				} else if (rank.equals("admin")) {
 					rankD = "[green]ADMIN[] ";
 					e.player.isAdmin = true;
-				}else {
+				} else {
 					e.player.name = Strings.stripColors(e.player.name);
 				}
 
@@ -188,10 +190,17 @@ public class MindustryParty extends Plugin {
 								insertStatement.setString(1, p.uuid);
 								insertStatement.execute();
 							} else {
-								PreparedStatement increasePlaytimeStatement = connection
-										.prepareStatement("UPDATE players SET playtime = playtime+1 WHERE uuid=?");
-								increasePlaytimeStatement.setString(1, p.uuid);
-								increasePlaytimeStatement.execute();
+								if (config.getProperty("serverType").equals("modded")) {
+									PreparedStatement increasePlaytimeStatement = connection.prepareStatement(
+											"UPDATE players SET playtime_modded = playtime_modded+1 WHERE uuid=?");
+									increasePlaytimeStatement.setString(1, p.uuid);
+									increasePlaytimeStatement.execute();
+								} else {
+									PreparedStatement increasePlaytimeStatement = connection
+											.prepareStatement("UPDATE players SET playtime = playtime+1 WHERE uuid=?");
+									increasePlaytimeStatement.setString(1, p.uuid);
+									increasePlaytimeStatement.execute();
+								}
 							}
 						} catch (SQLException e) {
 							System.out.println("Something went wrong during the playtime increase:");
@@ -220,13 +229,22 @@ public class MindustryParty extends Plugin {
 				(args, player) -> {
 
 					try {
-						PreparedStatement playerTopStatement = connection
-								.prepareStatement("SELECT * FROM players ORDER BY playtime DESC LIMIT 10;");
+						PreparedStatement playerTopStatement;
+						String server = "";
+						if (config.getProperty("serverType").equals("modded")) {
+							server = "Modded";
+							playerTopStatement = connection
+									.prepareStatement("SELECT * FROM players ORDER BY playtime_modded DESC LIMIT 10;");
+						} else {
+							server = "Vanilla";
+							playerTopStatement = connection
+									.prepareStatement("SELECT * FROM players ORDER BY playtime DESC LIMIT 10;");
+						}
 						ResultSet playerTop = playerTopStatement.executeQuery();
-						String text = "Top 10 - Playtime";
+						String text = "Top 10 - Playtime (" + server + " Server)";
 						int pos = 1;
 						while (playerTop.next()) {
-							int pt = playerTop.getInt("playtime");
+							int pt = (server == "Vanilla" ? playerTop.getInt("playtime") : playerTop.getInt("playtime_modded"));
 							text += "\n[accent]#" + pos + " -[white] " + playerTop.getString("name") + " [accent]- "
 									+ pt + " minute" + (pt == 1 ? "" : "s");
 							pos++;
@@ -324,7 +342,7 @@ public class MindustryParty extends Plugin {
 		 */
 
 		// Staffchat command.
-		handler.<Player>register("sc", "<message>", "[Staff-only] Staff-chat.", (args, player) -> {
+		handler.<Player>register("sc", "<message...>", "[Staff-only] Staff-chat.", (args, player) -> {
 
 			try {
 				PreparedStatement playerInfoStatement = connection
@@ -337,11 +355,15 @@ public class MindustryParty extends Plugin {
 				if (!rank.equals("moderator") && !rank.equals("admin")) {
 					Call.onInfoMessage(player.con, "[red]You need to be [accent]STAFF [red]to do that.");
 				} else {
-					for (Player p : players) {
-						String rankP = playerRanks.get(p);
-						if (rankP.equals("moderator") || rankP.contentEquals("admin")) {
-							p.sendMessage(
-									"[#3bcfe2][Staff-Chat] " + player.name + "[accent]: [white]" + String.join(" ", args));
+					if (args.length == 0) {
+						player.sendMessage("[red]You need to specify a message.");
+					} else {
+						for (Player p : players) {
+							String rankP = playerRanks.get(p);
+							if (rankP.equals("moderator") || rankP.contentEquals("admin")) {
+								p.sendMessage("[#3bcfe2][Staff-Chat] " + player.name + "[accent]: [white]"
+										+ String.join(" ", args));
+							}
 						}
 					}
 				}
@@ -362,8 +384,13 @@ public class MindustryParty extends Plugin {
 				ResultSet playerInfo = playerInfoStatement.executeQuery();
 				playerInfo.next();
 				int pt = playerInfo.getInt("playtime");
+				int pt_m = playerInfo.getInt("playtime_modded");
+				int pt_t = pt + pt_m;
 				Call.onInfoMessage(player.con,
-						"Your statistics:" + "\n" + "Playtime: [accent]" + pt + " minute" + (pt == 1 ? "" : "s"));
+						"Your statistics:" + "\n" + "Playtime (Vanilla) : [accent]" + pt + " minute"
+								+ (pt == 1 ? "" : "s") + "[]\n" + "Playtime (Modded) : [accent]" + pt_m + " minute"
+								+ (pt_m == 1 ? "" : "s") + "[]\n" + "Playtime (Total) : [accent]" + pt_t + " minute"
+								+ (pt_t == 1 ? "" : "s") + "[]");
 			} catch (SQLException e) {
 				// Something went wrong, inform them.
 				Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
