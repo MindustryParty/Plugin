@@ -41,7 +41,6 @@ public class MindustryParty extends Plugin {
 	private Properties config;
 
 	public MindustryParty() {
-
 		// Setup config file.
 		config = new Properties();
 		// Does the config already exist?
@@ -122,10 +121,10 @@ public class MindustryParty extends Plugin {
 				if (rank.equals("donator")) {
 					rankD = "[accent]DONATOR[] ";
 				} else if (rank.equals("moderator")) {
-					rankD = "[yellow]MODERATOR[] ";
+					rankD = "[green]MODERATOR[] ";
 					e.player.isAdmin = true;
 				} else if (rank.equals("admin")) {
-					rankD = "[green]ADMIN[] ";
+					rankD = "[red]ADMIN[] ";
 					e.player.isAdmin = true;
 				} else {
 					e.player.name = Strings.stripColors(e.player.name);
@@ -135,13 +134,18 @@ public class MindustryParty extends Plugin {
 
 				e.player.name = rankD + e.player.name;
 				playerRanksL.put(e.player, rankD);
+				Call.onInfoToast("[green]+[] "+e.player.name, 5);
+				Call.sendMessage(e.player.name + " [accent]joined.[]");
 			} catch (Exception ex) {
+				ex.printStackTrace();
 				e.player.con.kick("[red]Something went wrong. Please try joining again.");
 			}
 		});
 
 		// Listen to PlayerLeaveEvent.
 		Events.on(PlayerLeave.class, e -> {
+			Call.onInfoToast("[red]-[] "+e.player.name, 5);
+			Call.sendMessage(e.player.name + " [accent]left.[]");
 			// Remove player from internal player list.
 			players.remove(e.player);
 			// Remove rank from tracking.
@@ -244,7 +248,8 @@ public class MindustryParty extends Plugin {
 						String text = "Top 10 - Playtime (" + server + " Server)";
 						int pos = 1;
 						while (playerTop.next()) {
-							int pt = (server == "Vanilla" ? playerTop.getInt("playtime") : playerTop.getInt("playtime_modded"));
+							int pt = (server == "Vanilla" ? playerTop.getInt("playtime")
+									: playerTop.getInt("playtime_modded"));
 							text += "\n[accent]#" + pos + " -[white] " + playerTop.getString("name") + " [accent]- "
 									+ pt + " minute" + (pt == 1 ? "" : "s");
 							pos++;
