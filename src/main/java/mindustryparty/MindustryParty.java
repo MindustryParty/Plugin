@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.TimerTask;
@@ -118,7 +119,9 @@ public class MindustryParty extends Plugin {
 
 				e.player.isAdmin = false;
 
-				if (rank.equals("donator")) {
+				if (rank.equals("active")) {
+					rankD = "[orange]ACTIVE PLAYER[] ";
+				} else if (rank.equals("donator")) {
 					rankD = "[accent]DONATOR[] ";
 				} else if (rank.equals("moderator")) {
 					rankD = "[green]MODERATOR[] ";
@@ -134,7 +137,7 @@ public class MindustryParty extends Plugin {
 
 				e.player.name = rankD + e.player.name;
 				playerRanksL.put(e.player, rankD);
-				Call.onInfoToast("[green]+[] "+e.player.name, 5);
+				Call.onInfoToast("[green]+[] " + e.player.name, 5);
 				Call.sendMessage(e.player.name + " [accent]joined.[]");
 			} catch (Exception ex) {
 				ex.printStackTrace();
@@ -144,7 +147,7 @@ public class MindustryParty extends Plugin {
 
 		// Listen to PlayerLeaveEvent.
 		Events.on(PlayerLeave.class, e -> {
-			Call.onInfoToast("[red]-[] "+e.player.name, 5);
+			Call.onInfoToast("[red]-[] " + e.player.name, 5);
 			Call.sendMessage(e.player.name + " [accent]left.[]");
 			// Remove player from internal player list.
 			players.remove(e.player);
@@ -368,6 +371,66 @@ public class MindustryParty extends Plugin {
 							if (rankP.equals("moderator") || rankP.contentEquals("admin")) {
 								p.sendMessage("[#3bcfe2][Staff-Chat] " + player.name + "[accent]: [white]"
 										+ String.join(" ", args));
+							}
+						}
+					}
+				}
+			} catch (SQLException e) {
+				// Something went wrong, inform them.
+				Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+			}
+
+		});
+
+		// Setrank command.
+		handler.<Player>register("setrank", "<player> <rank>", "[Admin-only] Set a player rank.", (args, player) -> {
+
+			try {
+				PreparedStatement playerInfoStatement = connection
+						.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+				playerInfoStatement.setString(1, player.uuid);
+				ResultSet playerInfo = playerInfoStatement.executeQuery();
+				playerInfo.next();
+				String rank = playerInfo.getString("rank");
+
+				if (!rank.equals("admin")) {
+					Call.onInfoMessage(player.con, "[red]You need to be [accent]ADMIN [red]to do that.");
+				} else {
+					String rankToSet = args[1].toLowerCase();
+					String[] valid = { "default", "active", "donator", "moderator" };
+					if (!Arrays.stream(valid).anyMatch(t -> t.equals(rankToSet))) {
+						player.sendMessage("[red]Valid ranks: " + Strings.join(", ", valid) + ".");
+						return;
+					}
+
+					boolean found = false;
+					for (Player p : players) {
+						if (Strings.stripColors(originalName.get(p)).equalsIgnoreCase(args[0])) {
+							found = true;
+						}
+					}
+					if (!found) {
+						player.sendMessage("[red]That player is not online!");
+					} else {
+						for (Player p : players) {
+							if (Strings.stripColors(originalName.get(p)).equalsIgnoreCase(args[0])) {
+								PreparedStatement playerInfoStatement2 = connection
+										.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+								playerInfoStatement2.setString(1, p.uuid);
+								ResultSet playerInfo2 = playerInfoStatement2.executeQuery();
+								playerInfo2.next();
+								String rankP = playerInfo2.getString("rank");
+								if(rankP.equals("admin")) {
+									player.sendMessage("[red]That player is an admin!");
+									return;
+								}
+								PreparedStatement setRankStatement = connection
+										.prepareStatement("UPDATE players SET rank = '" + rankToSet + "' WHERE uuid=?");
+								setRankStatement.setString(1, p.uuid);
+								setRankStatement.execute();
+								player.sendMessage("[green]Gave " + p.name + " [green]" + rankToSet + "!");
+								p.sendMessage("[green]You have a new rank ("+rankToSet+")! Re-log to apply it.");
+								return;
 							}
 						}
 					}

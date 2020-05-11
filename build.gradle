@@ -1,6 +1,6 @@
 apply plugin: "java"
 
-version '8'
+version '9'
 
 sourceCompatibility = 1.8
 
