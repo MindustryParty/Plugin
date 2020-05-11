@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -21,6 +22,7 @@ import arc.Events;
 import arc.util.CommandHandler;
 import arc.util.Strings;
 import arc.util.Timer;
+import mindustry.content.Mechs;
 import mindustry.content.UnitTypes;
 import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
@@ -29,6 +31,7 @@ import mindustry.game.EventType.PlayerLeave;
 import mindustry.game.EventType.Trigger;
 import mindustry.gen.Call;
 import mindustry.plugin.Plugin;
+import mindustry.type.Mech;
 
 public class MindustryParty extends Plugin {
 
@@ -296,6 +299,42 @@ public class MindustryParty extends Plugin {
 
 		});
 
+		handler.<Player>register("transform", "[mech]", "[Donator-only] Transform yourself into a mech.",
+				(args, player) -> {
+
+					try {
+						PreparedStatement playerInfoStatement = connection
+								.prepareStatement("SELECT * FROM players WHERE uuid=?;");
+						playerInfoStatement.setString(1, player.uuid);
+						ResultSet playerInfo = playerInfoStatement.executeQuery();
+						playerInfo.next();
+						String rank = playerInfo.getString("rank");
+
+						if (rank.equals("default")) {
+							Call.onInfoMessage(player.con, "[red]You need [accent]DONATOR [red]rank to do that.");
+						} else {
+							Mech mechWanted = Mechs.dart;
+							if (args.length == 1) {
+								try {
+									Field field = Mechs.class.getDeclaredField(args[0].toLowerCase());
+									mechWanted = (Mech) field.get(null);
+								} catch (NoSuchFieldException | IllegalAccessException ex) {
+									player.sendMessage("[red]That is not a valid mech. You have been transformed into a dart mech.");
+									player.sendMessage("[red]Valid mechs: Alpha, Dart (Default), Delta, Glaive, Javelin, Omega, Tau, Trident.");
+								}
+							}else {
+								player.sendMessage("[red]Available mechs: Alpha, Dart (Default), Delta, Glaive, Javelin, Omega, Tau, Trident.");
+							}
+							player.mech = mechWanted;
+							player.sendMessage("[green]You have been transformed into a [][accent]"+mechWanted.name+"[][green] mech.");
+						}
+					} catch (SQLException e) {
+						// Something went wrong, inform them.
+						Call.onInfoMessage(player.con, "[red]Something went wrong. Please try again.");
+					}
+
+				});
+
 		handler.<Player>register("pet", "[petname]", "[Donator-only] Spawn a pet.", (args, player) -> {
 
 			try {
@@ -420,7 +459,7 @@ public class MindustryParty extends Plugin {
 								ResultSet playerInfo2 = playerInfoStatement2.executeQuery();
 								playerInfo2.next();
 								String rankP = playerInfo2.getString("rank");
-								if(rankP.equals("admin")) {
+								if (rankP.equals("admin")) {
 									player.sendMessage("[red]That player is an admin!");
 									return;
 								}
@@ -429,7 +468,7 @@ public class MindustryParty extends Plugin {
 								setRankStatement.setString(1, p.uuid);
 								setRankStatement.execute();
 								player.sendMessage("[green]Gave " + p.name + " [green]" + rankToSet + "!");
-								p.sendMessage("[green]You have a new rank ("+rankToSet+")! Re-log to apply it.");
+								p.sendMessage("[green]You have a new rank (" + rankToSet + ")! Re-log to apply it.");
 								return;
 							}
 						}
