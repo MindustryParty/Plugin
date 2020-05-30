@@ -51,7 +51,8 @@ public class MindustryParty extends Plugin {
 		if (!new File(Core.settings.getDataDirectory() + "/config.properties").exists()) {
 			try {
 				// Set the defaults
-				config.getProperty("dbstring", "jdbc:mysql://localhost:3306/mindustryparty");
+				config.getProperty("dbstring",
+						"jdbc:mysql://localhost:3306/mindustryparty?useUnicode=true&characterEncoding=utf8&validationQuery=true");
 				config.getProperty("dbuser", "root");
 				config.getProperty("dbpass", "root");
 				config.getProperty("serverType", "vanilla");
@@ -144,7 +145,7 @@ public class MindustryParty extends Plugin {
 				Call.sendMessage(e.player.name + " [accent]joined.[]");
 			} catch (Exception ex) {
 				ex.printStackTrace();
-				e.player.con.kick("[red]Something went wrong. Please try joining again.");
+				e.player.con.close();
 			}
 		});
 
@@ -229,6 +230,18 @@ public class MindustryParty extends Plugin {
 						"[#7289DA]Did you know that we have a discord server? Join it here: [purple]https://mindustry.party/discord[#7289DA].");
 			}
 		}, 15 * 60, 15 * 60);
+
+		// Keep connection active.
+		Timer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				try {
+					connection.isValid(1000);
+				} catch (SQLException e) {
+					System.out.println("WARNING Connection is not valid!");
+				}
+			}
+		}, 30, 30);
 	}
 
 	// Register player-invoked commands.
@@ -319,14 +332,18 @@ public class MindustryParty extends Plugin {
 									Field field = Mechs.class.getDeclaredField(args[0].toLowerCase());
 									mechWanted = (Mech) field.get(null);
 								} catch (NoSuchFieldException | IllegalAccessException ex) {
-									player.sendMessage("[red]That is not a valid mech. You have been transformed into a dart mech.");
-									player.sendMessage("[red]Valid mechs: Alpha, Dart (Default), Delta, Glaive, Javelin, Omega, Tau, Trident.");
+									player.sendMessage(
+											"[red]That is not a valid mech. You have been transformed into a dart mech.");
+									player.sendMessage(
+											"[red]Valid mechs: Alpha, Dart (Default), Delta, Glaive, Javelin, Omega, Tau, Trident.");
 								}
-							}else {
-								player.sendMessage("[red]Available mechs: Alpha, Dart (Default), Delta, Glaive, Javelin, Omega, Tau, Trident.");
+							} else {
+								player.sendMessage(
+										"[red]Available mechs: Alpha, Dart (Default), Delta, Glaive, Javelin, Omega, Tau, Trident.");
 							}
 							player.mech = mechWanted;
-							player.sendMessage("[green]You have been transformed into a [][accent]"+mechWanted.name+"[][green] mech.");
+							player.sendMessage("[green]You have been transformed into a [][accent]" + mechWanted.name
+									+ "[][green] mech.");
 						}
 					} catch (SQLException e) {
 						// Something went wrong, inform them.
